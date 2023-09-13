@@ -58,7 +58,7 @@ redo log buffer 大小，默认`16M`，最大值是4096M，最小值为1M。
 
 第2步：生成一条重做日志并写入redo log buffer，记录的是数据被修改后的值 
 
-第3步：当事务commit时，将redo log b·uffer中的内容刷新到 redo log file，对 redo log file采用追加写的方式 
+第3步：当事务commit时，将redo log buffer中的内容刷新到 redo log file，对 redo log file采用追加写的方式 
 
 第4步：定期将内存中修改的数据刷新到磁盘中
 
