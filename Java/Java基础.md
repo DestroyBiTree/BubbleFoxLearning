@@ -28,6 +28,7 @@ Java中有8中基本数据类型：
 - `double`-> `Double`
 - `char` -> `Character`
 - `boolean` -> `Boolean`
+扩展的数字类：BigInteger、BigDecimal
 
 包装类型都属于 Java 的标准类库，位于 `java.lang` 包中，因此它们不需要显式导入就可以使用。
 
