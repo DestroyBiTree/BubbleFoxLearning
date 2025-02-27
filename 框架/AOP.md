@@ -4,35 +4,43 @@
 
 ### 1.连接点：
 
-是程序执行过程中的具体点，在这些点上可以插入额外的行为。例如，一个方法调用就是一个连接点。
+是程序执行过程中的具体点，在这些点上可以插入额外的行为。一个方法调用就是一个连接点。
 
-- **举例**：如果你有一个方法 `calculate()`，那么这个方法的执行可以是一个连接点。
+- **举例**：方法 `calculate()`的执行是一个连接点。
 
 ### 2.切面：
 
-封装了横切关注点的模块。举例：如果你正在开发一个应用，并且需要在每个方法执行前后记录日志，那么“记录日志”的功能就是一个切面。
+封装了横切关注点的模块，它定义了何时以及如何应用增强功能。通知是切面必须完成的工作，比如在目标方法之前或之后执行某些操作。
+
+举例：在每个方法执行前后记录日志，“记录日志”的功能就是一个切面。
 
 通知是切面的一部分，它定义了在切点匹配时应该执行的动作。通知有几种类型，包括：
 
 - **前置通知** (`@Before`)：在目标方法执行之前执行。
 - **后置通知** (`@After`)：在目标方法执行之后执行，无论方法是否成功。
 - **返回通知** (`@AfterReturning`)：在目标方法成功返回后执行。
-- **异常通知** (`@AfterThrowing`)：在目标方法抛出异常后执行。
+- **异常通知** (`@AfterThrowing`)：在目标方法抛出异常后执行。 
 - **环绕通知** (`@Around`)：在目标方法执行之前和之后运行，可以控制方法的执行。
 
 ### 3.切点：
 
- 是对连接点的一个选择条件，即一组连接点的选择标准。它定义了切面应该在哪些连接点上应用。
+切点用于选择特定的连接点。如要在`OrderService`的所有`placeOrder`方法调用上应用的横切关注点（如日志记录和事务管理），可以定义如下切点：
+
+```
+execution(* OrderService.placeOrder(..))
+```
+
+每次`OrderService`类中的`placeOrder`方法被调用时，都会触发与这个切点关联的通知。
 
 ### 举例：
 
-假设你有一个银行应用，里面有一个`AccountService`类，其中有两个方法：`deposit`和`withdraw`。你希望在每个方法调用前后记录日志。
+银行应用有一个`AccountService`类，其中有两个方法：`deposit`和`withdraw`。要实现在每个方法调用前后记录日志。
 
 - **切面**：记录日志的功能。
 
 - **连接点**：`deposit`方法调用和`withdraw`方法调用。连接点就是这两个方法的实际调用点。
 
-- **切点**：如果我们定义了一个切入点 `execution(* com.example.AccountService.*(..))`，那么这个切入点就会匹配 `AccountService` 类中的所有方法调用，即 `deposit()` 和 `withdraw()` 都会被视为连接点，并且我们可以在这些方法调用前后加入记录日志的代码。
+- **切点**：定义了一个切入点 `execution(* com.example.AccountService.*(..))`，那么这个切入点就会匹配 `AccountService` 类中的所有方法调用，即 `deposit()` 和 `withdraw()` 都会被视为连接点，并且我们可以在这些方法调用前后加入记录日志的代码。
 
   ```Java
   @Aspect
@@ -83,73 +91,135 @@
 
 ## 注解和AOP的结合：
 
-在AOP（面向切面编程）中，切入点（Pointcut）定义了切面（Aspect）的哪个部分应当被应用到哪些连接点（Joinpoint）上。连接点通常是应用程序中的方法调用或异常抛出等事件。通过将切入点定义为对特定注解的匹配，您可以精确地控制AOP逻辑何时被触发。
+创建一个自定义注解 `@RequirePermission`，并在AOP切面中实现权限检查。
 
-当您使用自定义注解作为切入点时，Spring AOP会检查方法是否带有该注解，如果方法被正确标注，那么对应的AOP逻辑（Advice）就会被执行。这种方式使得AOP更加灵活，因为它允许您在不改变业务逻辑代码的情况下，通过添加或移除注解来启用或禁用特定的行为。
+### 1. 创建自定义注解
 
-### 举例-自定义注解：记录日志
+定义一个自定义注解 `@RequirePermission`，用于标记需要进行权限检查的方法。
 
-1.自定义一个注解@Loggable
-
-```Java
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-
+```java
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
-public @interface LogExecutionTime {
+public @interface RequirePermission {
+    String value();  // 权限字符串
 }
 ```
 
-2.创建切面
+**自定义注解 `@RequirePermission`**：
 
-```Java
-import org.aspectj.lang.ProceedingJoinPoint;
-import org.aspectj.lang.annotation.Around;
-import org.aspectj.lang.annotation.Aspect;
-import org.springframework.stereotype.Component;
+- `@Retention(RetentionPolicy.RUNTIME)` 表示注解在运行时保留。
+- `@Target(ElementType.METHOD)` 表示注解可以应用于方法。
+- `String value()` 表示注解的值是一个字符串，用于指定所需的权限。
 
+### 2. 创建权限检查切面
+
+创建一个切面类 `PermissionAspect`，在该类中定义切点和通知，实现权限检查逻辑。
+
+```java
 @Aspect
-@Component
-public class LoggingAspect {
+public class PermissionAspect {
 
-    @Around("@annotation(LogExecutionTime)")
-    public Object logExecutionTime(ProceedingJoinPoint joinPoint) throws Throwable {
-        long start = System.currentTimeMillis();
-        try {
-            return joinPoint.proceed();
-        } finally {
-            long elapsedTime = System.currentTimeMillis() - start;
-            System.out.println("Method " + joinPoint.getSignature().getName() +
-                    " took " + elapsedTime + " milliseconds to execute.");
+    // 定义切点，匹配所有带有 @RequirePermission 注解的方法
+    @Pointcut("@annotation(com.example.annotation.RequirePermission)")
+    public void requirePermissionMethods() {
+        // 这是一个空函数，起到给切点命名的作用
+    }
+
+    // 在方法调用前执行的通知
+    @Before("requirePermissionMethods()")
+    public void checkPermission(JoinPoint joinPoint) {
+        // 获取方法签名
+        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        Method method = signature.getMethod();
+
+        // 获取注解
+        RequirePermission requirePermission = method.getAnnotation(RequirePermission.class);
+        if (requirePermission != null) {
+            String requiredPermission = requirePermission.value();
+
+            // 权限检查逻辑
+            boolean hasPermission = checkUserPermission(requiredPermission);
+
+            if (!hasPermission) {
+                throw new SecurityException("User does not have the required permission: " + requiredPermission);
+            }
+
+            System.out.println("User has the required permission: " + requiredPermission);
         }
+    }
+
+    // 权限检查逻辑
+    private boolean checkUserPermission(String requiredPermission) {
+        // 
+        // 这里只是简单地返回 true 或 false
+        return "ADMIN".equals(requiredPermission);  // 假设用户只有管理员权限
     }
 }
 ```
 
-3.实际使用
+**权限检查切面 `PermissionAspect`**：
 
-```Java
-import org.springframework.stereotype.Service;
+- `@Pointcut("@annotation(com.example.annotation.RequirePermission)")` 定义了一个切点，匹配所有带有 `@RequirePermission` 注解的方法。
+- `@Before("requirePermissionMethods()")` 定义了一个前置通知，用于在匹配的方法调用之前执行权限检查。
+- `checkPermission(JoinPoint joinPoint)` 方法实现了权限检查逻辑，获取方法上的注解，并检查用户是否有所需的权限。
+- `checkUserPermission(String requiredPermission)` 方法模拟了权限检查逻辑，可以根据实际情况实现真实的权限检查。
 
-@Service
-public class SomeService {
+### 3. 服务类
 
-    @LogExecutionTime
-    public void someOperation() {
-        // 模拟一些耗时操作
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+服务类 `MyService`，其中包含一些需要进行权限检查的方法。
+
+```java
+public class MyService {
+
+    @RequirePermission("USER")
+    public void doSomething() {
+        System.out.println("Doing something...");
+    }
+
+    @RequirePermission("ADMIN")
+    public void doAnotherThing() {
+        System.out.println("Doing another thing...");
     }
 }
 ```
 
-## aop中的常用注解：
+**服务类 `MyService`**：
+
+- `doSomething` 方法需要 `USER` 权限。
+- `doAnotherThing` 方法需要 `ADMIN` 权限。
+
+### 4. 测试
+
+创建一个主类来测试权限检查切面。
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        MyService myService = new MyService();
+        
+        try {
+            myService.doSomething();  // 抛出 SecurityException
+        } catch (SecurityException e) {
+            System.out.println(e.getMessage());
+        }
+
+        myService.doAnotherThing();  // 正常执行
+    }
+}
+```
+
+### 输出
+
+运行上述代码，将看到以下输出：
+
+```
+User does not have the required permission: USER
+User does not have the required permission: USER
+User has the required permission: ADMIN
+Doing another thing...
+```
+
+## AOP中的常用注解：
 
 ### @Aspect
 - **使用场景**：用于声明一个类是切面类，即这个类包含了AOP的逻辑，如定义切入点和通知。
